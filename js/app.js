@@ -49,4 +49,30 @@
   });
 
   vistaIngresos.mostrar(servicio.listar());
+
+  // Sesión: sin empleado conectado la página muestra solo el inicio de sesión.
+  // Cerrar sesión no borra los ingresos, que viven en el repositorio en memoria.
+  const sesion = new G.ServicioSesion({ empleados: G.EMPLEADOS, maxIntentos: 3 });
+  const vistaSesion = new G.VistaSesion({
+    formulario: document.getElementById('formulario-sesion'),
+    panel: document.getElementById('panel-sesion'),
+    zonaMensaje: document.getElementById('mensaje-sesion'),
+    etiquetaEmpleado: document.getElementById('empleado-conectado'),
+    botonCerrar: document.getElementById('cerrar-sesion'),
+    contenido: document.querySelector('main.contenido'),
+  });
+
+  vistaSesion.alIniciar((usuario, contrasena) => {
+    const resultado = sesion.iniciarSesion(usuario, contrasena);
+    if (resultado.ok) {
+      vistaSesion.mostrarConectado(resultado.empleado);
+    } else {
+      vistaSesion.mostrarError(resultado.mensaje);
+    }
+  });
+
+  vistaSesion.alCerrar(() => {
+    sesion.cerrarSesion();
+    vistaSesion.mostrarDesconectado();
+  });
 })();
