@@ -1,6 +1,6 @@
 # SPEC 01 — Inicio de sesión de empleados
 
-> **Estado:** Borrador
+> **Estado:** Aprobado
 > **Depende de:** —
 > **Fecha:** 2026-10-28
 > **Objetivo:** Que solo un empleado de la guardería que inicie sesión con usuario y contraseña pueda ver y usar el registro de ingresos.
@@ -8,7 +8,7 @@
 ## Por qué existe esta spec
 
 Huellitas es una página estática sin servidor.
-Por eso el control de acceso vive en el navegador y los usuarios están en el código fuente.
+Por eso el control de acceso vive en   el navegador y los usuarios están en el código fuente.
 Es un control de acceso de la aplicación (requisito funcional que se puede probar), no seguridad real.
 
 ## Alcance
