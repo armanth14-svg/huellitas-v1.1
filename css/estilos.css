@@ -31,6 +31,14 @@ body {
 .encabezado p { margin: 2px 0 0; color: #c9cfd8; font-size: 14px; }
 .version { font-weight: 700; background: var(--acento); padding: 4px 10px; border-radius: 12px; font-size: 13px; }
 
+/* Sin esto, display:grid/flex de las reglas de abajo anula el atributo hidden */
+[hidden] { display: none !important; }
+
+.encabezado__sesion { display: flex; align-items: center; gap: 12px; }
+.empleado-conectado { font-size: 14px; color: #c9cfd8; }
+
+.panel--sesion { max-width: 380px; margin: 40px auto; }
+
 .contenido {
   display: grid;
   grid-template-columns: minmax(300px, 420px) 1fr;
@@ -49,7 +57,7 @@ body {
 .campo--check label { font-weight: 400; display: flex; gap: 8px; align-items: center; }
 .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
-input[type="text"], select {
+input[type="text"], input[type="password"], select {
   font: inherit;
   padding: 8px 10px;
   border: 1px solid var(--borde);
