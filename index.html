@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Huellitas UPTC — Ingreso de mascotas</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <header class="encabezado">
+    <div>
+      <h1>Huellitas UPTC</h1>
+      <p>Guardería de mascotas · Ingreso</p>
+    </div>
+    <span class="version">v1.1</span>
+  </header>
+
+  <main class="contenido">
+    <section class="panel">
+      <h2>Registrar un ingreso</h2>
+      <form id="formulario-ingreso" novalidate>
+        <div class="campo">
+          <label for="nombre">Nombre de la mascota</label>
+          <input id="nombre" name="nombre" type="text" autocomplete="off">
+          <small class="error" data-error-de="nombre"></small>
+        </div>
+
+        <div class="campo">
+          <label for="especie">Especie</label>
+          <select id="especie" name="especie">
+            <option value="">— Seleccione —</option>
+            <option value="Perro">Perro</option>
+            <option value="Gato">Gato</option>
+            <option value="Ave">Ave</option>
+            <option value="Conejo">Conejo</option>
+          </select>
+          <small class="error" data-error-de="especie"></small>
+        </div>
+
+        <div class="fila">
+          <div class="campo">
+            <label for="edadMeses">Edad (meses)</label>
+            <input id="edadMeses" name="edadMeses" type="text" inputmode="numeric" autocomplete="off">
+            <small class="error" data-error-de="edadMeses"></small>
+          </div>
+          <div class="campo">
+            <label for="pesoKg">Peso (kg)</label>
+            <input id="pesoKg" name="pesoKg" type="text" inputmode="decimal" autocomplete="off" placeholder="Ej. 4.5">
+            <small class="error" data-error-de="pesoKg"></small>
+          </div>
+        </div>
+
+        <div class="campo campo--check">
+          <label><input id="tieneAntirrabica" name="tieneAntirrabica" type="checkbox"> Tiene la vacuna antirrábica vigente</label>
+          <small class="error" data-error-de="tieneAntirrabica"></small>
+        </div>
+
+        <div class="campo">
+          <label for="documentoDueno">Documento del dueño</label>
+          <input id="documentoDueno" name="documentoDueno" type="text" inputmode="numeric" autocomplete="off">
+          <small class="error" data-error-de="documentoDueno"></small>
+        </div>
+
+        <div class="campo campo--check">
+          <label><input id="duenoEsEstudiante" name="duenoEsEstudiante" type="checkbox"> El dueño es estudiante de la UPTC</label>
+        </div>
+
+        <button type="submit" class="principal">Registrar ingreso</button>
+        <p id="mensaje-formulario" class="mensaje" role="status"></p>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Ingresos</h2>
+      <p id="mensaje-ingresos" class="mensaje" role="status"></p>
+      <table>
+        <thead>
+          <tr><th>Código</th><th>Nombre</th><th>Especie</th><th>Tarifa por día</th><th>Estado</th><th>Acciones</th></tr>
+        </thead>
+        <tbody id="cuerpo-ingresos"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <!-- Dominio: no sabe nada de la página -->
+  <script src="js/dominio/especies.js"></script>
+  <script src="js/dominio/reglas/ReglaNombre.js"></script>
+  <script src="js/dominio/reglas/ReglaEspecie.js"></script>
+  <script src="js/dominio/reglas/ReglaEdad.js"></script>
+  <script src="js/dominio/reglas/ReglaPeso.js"></script>
+  <script src="js/dominio/reglas/ReglaVacuna.js"></script>
+  <script src="js/dominio/reglas/ReglaDocumento.js"></script>
+  <script src="js/dominio/ValidadorIngreso.js"></script>
+  <script src="js/dominio/CalculadoraTarifa.js"></script>
+  <script src="js/dominio/EstadoIngreso.js"></script>
+  <script src="js/dominio/ServicioIngresos.js"></script>
+  <!-- Infraestructura -->
+  <script src="js/infraestructura/RepositorioEnMemoria.js"></script>
+  <!-- Interfaz -->
+  <script src="js/ui/VistaFormulario.js"></script>
+  <script src="js/ui/VistaIngresos.js"></script>
+  <!-- Composición: aquí se conecta todo -->
+  <script src="js/app.js"></script>
+</body>
+</html>
