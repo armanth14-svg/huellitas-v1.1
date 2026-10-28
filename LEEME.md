@@ -11,20 +11,37 @@ Doble clic en `index.html`. Se abre en el navegador. No hay que instalar nada ni
 Los ingresos se guardan solo mientras la página está abierta: **al recargar (F5) todo vuelve a cero.**
 Úsenlo a su favor: cada prueba puede empezar limpia.
 
+## Inicio de sesión
+
+Al abrir la página hay que iniciar sesión con un empleado. Usuarios de ejemplo:
+
+| Usuario | Contraseña | Nombre que se muestra |
+|---|---|---|
+| `ana` | `Huellitas2026` | Ana Torres |
+| `luis` | `Guarderia#1` | Luis Gómez |
+
+- El usuario no distingue mayúsculas ni espacios al inicio o al final; la contraseña sí distingue mayúsculas.
+- Tras 3 intentos fallidos seguidos, el usuario queda bloqueado hasta recargar la página.
+- **Al recargar (F5) hay que volver a iniciar sesión**, y los bloqueos desaparecen.
+- "Cerrar sesión" no borra los ingresos registrados mientras la página siga abierta.
+- Es un control de acceso de la aplicación, no seguridad real: los usuarios y contraseñas están en `js/dominio/empleados.js`.
+
 ## Cómo está organizada (principios SOLID)
 
 ```
 index.html                 La página
 css/estilos.css            La apariencia
 js/dominio/                Las reglas del negocio. No saben nada de la página.
+  empleados.js             Empleados que pueden iniciar sesión (usuario, nombre, contraseña)
   especies.js              Configuración por especie: tarifa base, peso máximo, si necesita antirrábica
   reglas/Regla*.js         Una clase por regla de validación
   ValidadorIngreso.js      Junta las reglas
   CalculadoraTarifa.js     Calcula la tarifa por día
   EstadoIngreso.js         Los estados de un ingreso y las transiciones permitidas
   ServicioIngresos.js      Los casos de uso: registrar, registrar llegada, entregar
+  ServicioSesion.js        Iniciar y cerrar sesión, con bloqueo tras 3 intentos fallidos
 js/infraestructura/        Dónde se guardan los ingresos (aquí, en memoria)
-js/ui/                     Lo que se ve: el formulario y la tabla
+js/ui/                     Lo que se ve: el inicio de sesión, el formulario y la tabla
 js/app.js                  Donde se crean y se conectan todas las piezas
 pruebas/dominio.test.js    Las pruebas automáticas del equipo de desarrollo
 ```
