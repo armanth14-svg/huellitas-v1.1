@@ -1,6 +1,6 @@
 # SPEC 02 — Inicio de sesión de empleados con correo
 
-> **Estado:** Borrador
+> **Estado:** Aprobado
 > **Depende de:** —
 > **Reemplaza a:** SPEC 01 (queda Obsoleto)
 > **Fecha:** 2026-10-30
