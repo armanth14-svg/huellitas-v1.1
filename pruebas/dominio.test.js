@@ -16,6 +16,7 @@ const CalculadoraTarifa = require('../js/dominio/CalculadoraTarifa.js');
 const EstadoIngreso = require('../js/dominio/EstadoIngreso.js');
 const ServicioIngresos = require('../js/dominio/ServicioIngresos.js');
 const RepositorioEnMemoria = require('../js/infraestructura/RepositorioEnMemoria.js');
+const hashSha256 = require('../js/infraestructura/hashSha256.js');
 
 const valido = {
   nombre: 'Luna', especie: 'Perro', edadMeses: '24', pesoKg: '12',
@@ -91,4 +92,11 @@ test('con datos inválidos el servicio no registra nada', () => {
   const r = servicio.registrar({ ...valido, nombre: '' });
   assert.strictEqual(r.ok, false);
   assert.strictEqual(repositorio.listar().length, 0);
+});
+
+test('hashSha256 de "abc" es el valor SHA-256 conocido', async () => {
+  assert.strictEqual(
+    await hashSha256('abc'),
+    'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
+  );
 });
