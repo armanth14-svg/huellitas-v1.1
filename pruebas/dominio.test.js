@@ -119,7 +119,7 @@ async function crearEntornoSesion() {
   const notificador = { avisos: [], enviarAvisoBloqueo(aviso) { this.avisos.push(aviso); } };
   const sesion = new ServicioSesion({
     empleados, hash: hashSha256, reloj, almacen, notificador,
-    maxIntentos: 5, bloqueoMs: 15 * 60 * 1000,
+    maxIntentos: 5, bloqueoMs: 15 * 60 * 1000, inactividadMs: 30 * 60 * 1000,
   });
   return { sesion, reloj, almacen, notificador, empleados };
 }
@@ -348,7 +348,7 @@ test('bloqueo: el estado persiste en el almacén y otro servicio lo respeta', as
   await fallar(sesion, ANA, 5);
   const otro = new ServicioSesion({
     empleados, hash: hashSha256, reloj, almacen,
-    notificador: { enviarAvisoBloqueo() {} }, maxIntentos: 5, bloqueoMs: 15 * MINUTO,
+    notificador: { enviarAvisoBloqueo() {} }, maxIntentos: 5, bloqueoMs: 15 * MINUTO, inactividadMs: 30 * MINUTO,
   });
   const r = await otro.iniciarSesion(ANA, 'clave-de-ana');
   assert.strictEqual(r.mensaje, 'Cuenta bloqueada por demasiados intentos fallidos.');
@@ -416,4 +416,71 @@ test('buzón: guarda los avisos y los lista como copias', () => {
   assert.deepStrictEqual(buzon.listar(), [aviso]);
   buzon.listar()[0].para = 'otro@x.co';
   assert.strictEqual(buzon.listar()[0].para, 'ana.torres@huellitas.co');
+});
+
+// --- Inactividad (CU-R9) ---
+async function iniciarComoAna(entorno) {
+  const r = await entorno.sesion.iniciarSesion(ANA, 'clave-de-ana');
+  assert.strictEqual(r.ok, true);
+}
+
+test('inactividad: a los 29:59 sin actividad la sesión sigue abierta', async () => {
+  const entorno = await crearEntornoSesion();
+  await iniciarComoAna(entorno);
+  entorno.reloj.avanzar(30 * MINUTO - 1000);
+  assert.strictEqual(entorno.sesion.haySesion(), true);
+  assert.strictEqual(entorno.sesion.empleadoActual().correo, ANA);
+});
+
+test('inactividad: a los 30:00 sin actividad la sesión se cierra', async () => {
+  const entorno = await crearEntornoSesion();
+  await iniciarComoAna(entorno);
+  entorno.reloj.avanzar(30 * MINUTO);
+  assert.strictEqual(entorno.sesion.empleadoActual(), null);
+  assert.strictEqual(entorno.sesion.haySesion(), false);
+});
+
+test('inactividad: registrar actividad reinicia la cuenta de los 30 minutos', async () => {
+  const entorno = await crearEntornoSesion();
+  await iniciarComoAna(entorno);
+  entorno.reloj.avanzar(20 * MINUTO);
+  entorno.sesion.registrarActividad();
+  entorno.reloj.avanzar(29 * MINUTO + 59 * 1000);
+  assert.strictEqual(entorno.sesion.haySesion(), true);
+  entorno.reloj.avanzar(1000);
+  assert.strictEqual(entorno.sesion.haySesion(), false);
+});
+
+test('inactividad: registrar actividad no revive una sesión vencida', async () => {
+  const entorno = await crearEntornoSesion();
+  await iniciarComoAna(entorno);
+  entorno.reloj.avanzar(30 * MINUTO);
+  entorno.sesion.registrarActividad();
+  assert.strictEqual(entorno.sesion.haySesion(), false);
+  entorno.reloj.avanzar(1000);
+  assert.strictEqual(entorno.sesion.haySesion(), false);
+});
+
+test('inactividad: registrar actividad sin sesión no hace nada', async () => {
+  const entorno = await crearEntornoSesion();
+  entorno.sesion.registrarActividad();
+  assert.strictEqual(entorno.sesion.haySesion(), false);
+});
+
+test('inactividad: tras vencer se puede iniciar sesión de nuevo con la cuenta de siempre', async () => {
+  const entorno = await crearEntornoSesion();
+  await iniciarComoAna(entorno);
+  entorno.reloj.avanzar(30 * MINUTO);
+  assert.strictEqual(entorno.sesion.haySesion(), false);
+  await iniciarComoAna(entorno);
+  assert.strictEqual(entorno.sesion.haySesion(), true);
+});
+
+test('inactividad: un nuevo inicio de sesión reinicia la cuenta', async () => {
+  const entorno = await crearEntornoSesion();
+  await iniciarComoAna(entorno);
+  entorno.reloj.avanzar(25 * MINUTO);
+  await entorno.sesion.iniciarSesion(LUIS, 'clave-de-luis');
+  entorno.reloj.avanzar(25 * MINUTO);
+  assert.strictEqual(entorno.sesion.empleadoActual().correo, LUIS);
 });

@@ -1,4 +1,4 @@
-// Inicio de sesión de empleados con correo y contraseña (CU-R2, CU-R7, CU-R8).
+// Inicio de sesión de empleados con correo y contraseña (CU-R2, CU-R7, CU-R8, CU-R9).
 // Depende de abstracciones que recibe por el constructor (empleados, hash, reloj, almacén y notificador),
 // no del navegador ni de Web Crypto: por eso se puede probar en Node con reloj falso.
 // La sesión vive solo en memoria; los fallos y bloqueos sí se guardan en el almacén.
@@ -20,7 +20,7 @@
   }
 
   class ServicioSesion {
-    constructor({ empleados, hash, reloj, almacen, notificador, maxIntentos, bloqueoMs }) {
+    constructor({ empleados, hash, reloj, almacen, notificador, maxIntentos, bloqueoMs, inactividadMs }) {
       this.empleados = empleados;
       this.hash = hash;
       this.reloj = reloj;
@@ -28,7 +28,9 @@
       this.notificador = notificador;
       this.maxIntentos = maxIntentos;
       this.bloqueoMs = bloqueoMs;
+      this.inactividadMs = inactividadMs;
       this.empleado = null;
+      this.ultimaActividad = null;
     }
 
     async iniciarSesion(correo, contrasena) {
@@ -83,6 +85,7 @@
 
       // Se devuelve el empleado de la lista (no lo escrito) y sin sal ni hash.
       this.empleado = { correo: registrado.correo, nombre: registrado.nombre };
+      this.ultimaActividad = ahora;
       return { ok: true, empleado: { ...this.empleado } };
     }
 
@@ -93,10 +96,22 @@
 
     cerrarSesion() {
       this.empleado = null;
+      this.ultimaActividad = null;
     }
 
+    // Si la sesión lleva inactividadMs o más sin actividad, se cierra aquí mismo (CU-R9).
     empleadoActual() {
+      if (this.empleado && this.reloj.ahora() - this.ultimaActividad >= this.inactividadMs) {
+        this.cerrarSesion();
+      }
       return this.empleado ? { ...this.empleado } : null;
+    }
+
+    // Un clic o una tecla renuevan la sesión; una sesión ya vencida no revive.
+    registrarActividad() {
+      if (this.empleadoActual() !== null) {
+        this.ultimaActividad = this.reloj.ahora();
+      }
     }
 
     haySesion() {
