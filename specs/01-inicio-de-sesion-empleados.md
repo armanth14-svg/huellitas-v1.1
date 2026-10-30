@@ -1,6 +1,6 @@
 # SPEC 01 — Inicio de sesión de empleados
 
-> **Estado:** Aprobado
+> **Estado:** Implentado
 > **Depende de:** —
 > **Fecha:** 2026-10-28
 > **Objetivo:** Que solo un empleado de la guardería que inicie sesión con usuario y contraseña pueda ver y usar el registro de ingresos.
@@ -91,21 +91,21 @@ Reglas del contador:
 
 ## Criterios de aceptación
 
-- [ ] Al abrir `index.html` solo se ve la pantalla de inicio de sesión; el formulario y la tabla de ingresos no están visibles.
-- [ ] `ana` / `Huellitas2026` inicia sesión y muestra "Ana Torres" en el encabezado.
-- [ ] `  ANA  ` / `Huellitas2026` también inicia sesión.
-- [ ] `ana` / `huellitas2026` es rechazado con `Usuario o contraseña incorrectos.`
-- [ ] Un usuario inexistente es rechazado con el mismo mensaje que una contraseña incorrecta.
-- [ ] Usuario o contraseña vacíos muestran `Ingrese usuario y contraseña.` y no suman al contador.
-- [ ] El 3.er fallo seguido de un usuario muestra `Usuario bloqueado por demasiados intentos fallidos.`
-- [ ] Tras el bloqueo, ese usuario no entra ni con la contraseña correcta.
-- [ ] Bloquear a `ana` no impide que `luis` inicie sesión.
-- [ ] Dos fallos seguidos de un inicio correcto dejan el contador en 0 (después hacen falta 3 fallos nuevos para bloquear).
-- [ ] "Cerrar sesión" vuelve a la pantalla de inicio de sesión con los campos vacíos y oculta el formulario y la tabla.
-- [ ] Tras cerrar sesión y volver a entrar, los ingresos registrados antes siguen en la tabla.
-- [ ] Al recargar (F5) se vuelve a pedir inicio de sesión y los bloqueos desaparecen.
-- [ ] `node --test` pasa, incluidas las pruebas nuevas de `ServicioSesion`.
-- [ ] No hay errores en la consola del navegador.
+- [x] Al abrir `index.html` solo se ve la pantalla de inicio de sesión; el formulario y la tabla de ingresos no están visibles.
+- [x] `ana` / `Huellitas2026` inicia sesión y muestra "Ana Torres" en el encabezado.
+- [x] `  ANA  ` / `Huellitas2026` también inicia sesión.
+- [x] `ana` / `huellitas2026` es rechazado con `Usuario o contraseña incorrectos.`
+- [x] Un usuario inexistente es rechazado con el mismo mensaje que una contraseña incorrecta.
+- [x] Usuario o contraseña vacíos muestran `Ingrese usuario y contraseña.` y no suman al contador.
+- [x] El 3.er fallo seguido de un usuario muestra `Usuario bloqueado por demasiados intentos fallidos.`
+- [x] Tras el bloqueo, ese usuario no entra ni con la contraseña correcta.
+- [x] Bloquear a `ana` no impide que `luis` inicie sesión.
+- [x] Dos fallos seguidos de un inicio correcto dejan el contador en 0 (después hacen falta 3 fallos nuevos para bloquear).
+- [x] "Cerrar sesión" vuelve a la pantalla de inicio de sesión con los campos vacíos y oculta el formulario y la tabla.
+- [x] Tras cerrar sesión y volver a entrar, los ingresos registrados antes siguen en la tabla.
+- [x] Al recargar (F5) se vuelve a pedir inicio de sesión y los bloqueos desaparecen.
+- [x] `node --test` pasa, incluidas las pruebas nuevas de `ServicioSesion`.
+- [x] No hay errores en la consola del navegador.
 
 ## Decisiones
 
