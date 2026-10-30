@@ -18,6 +18,8 @@ const ServicioIngresos = require('../js/dominio/ServicioIngresos.js');
 const RepositorioEnMemoria = require('../js/infraestructura/RepositorioEnMemoria.js');
 const hashSha256 = require('../js/infraestructura/hashSha256.js');
 const ServicioSesion = require('../js/dominio/ServicioSesion.js');
+const AlmacenSeguridadLocal = require('../js/infraestructura/AlmacenSeguridadLocal.js');
+const BuzonDePrueba = require('../js/infraestructura/BuzonDePrueba.js');
 
 const valido = {
   nombre: 'Luna', especie: 'Perro', edadMeses: '24', pesoKg: '12',
@@ -350,4 +352,68 @@ test('bloqueo: el estado persiste en el almacén y otro servicio lo respeta', as
   });
   const r = await otro.iniciarSesion(ANA, 'clave-de-ana');
   assert.strictEqual(r.mensaje, 'Cuenta bloqueada por demasiados intentos fallidos.');
+});
+
+// --- Almacén de seguridad y buzón de prueba ---
+function almacenamientoFalso(inicial) {
+  const datos = new Map();
+  if (inicial !== undefined) datos.set(AlmacenSeguridadLocal.CLAVE, inicial);
+  return {
+    datos,
+    getItem: (clave) => (datos.has(clave) ? datos.get(clave) : null),
+    setItem: (clave, valor) => { datos.set(clave, valor); },
+  };
+}
+
+test('almacén: JSON corrupto devuelve estado vacío', () => {
+  const almacen = new AlmacenSeguridadLocal({ almacenamiento: almacenamientoFalso('{esto no es json') });
+  assert.deepStrictEqual(almacen.leer(), {});
+});
+
+test('almacén: un valor que no es objeto devuelve estado vacío', () => {
+  for (const texto of ['null', '5', '"hola"', '[1,2]']) {
+    const almacen = new AlmacenSeguridadLocal({ almacenamiento: almacenamientoFalso(texto) });
+    assert.deepStrictEqual(almacen.leer(), {}, texto);
+  }
+});
+
+test('almacén: sin nada guardado devuelve estado vacío', () => {
+  const almacen = new AlmacenSeguridadLocal({ almacenamiento: almacenamientoFalso() });
+  assert.deepStrictEqual(almacen.leer(), {});
+});
+
+test('almacén: lo guardado lo lee otro almacén sobre el mismo almacenamiento (como tras F5)', () => {
+  const almacenamiento = almacenamientoFalso();
+  const estado = { 'ana.torres@huellitas.co': { fallos: 5, bloqueadoHasta: 1793361600000 } };
+  new AlmacenSeguridadLocal({ almacenamiento }).guardar(estado);
+  assert.deepStrictEqual(new AlmacenSeguridadLocal({ almacenamiento }).leer(), estado);
+  assert.ok(almacenamiento.datos.has('huellitas:seguridad:v1'));
+});
+
+test('almacén: sin localStorage sigue en memoria', () => {
+  const almacen = new AlmacenSeguridadLocal({ almacenamiento: null });
+  assert.deepStrictEqual(almacen.leer(), {});
+  almacen.guardar({ 'x@y.co': { fallos: 2, bloqueadoHasta: null } });
+  assert.deepStrictEqual(almacen.leer(), { 'x@y.co': { fallos: 2, bloqueadoHasta: null } });
+});
+
+test('almacén: si localStorage lanza error, sigue en memoria', () => {
+  const roto = {
+    getItem() { throw new Error('bloqueado'); },
+    setItem() { throw new Error('bloqueado'); },
+  };
+  const almacen = new AlmacenSeguridadLocal({ almacenamiento: roto });
+  assert.deepStrictEqual(almacen.leer(), {});
+  almacen.guardar({ 'x@y.co': { fallos: 1, bloqueadoHasta: null } });
+  assert.deepStrictEqual(almacen.leer(), { 'x@y.co': { fallos: 1, bloqueadoHasta: null } });
+});
+
+test('buzón: guarda los avisos y los lista como copias', () => {
+  const buzon = new BuzonDePrueba();
+  assert.deepStrictEqual(buzon.listar(), []);
+  const aviso = { para: 'ana.torres@huellitas.co', asunto: 'Aviso de bloqueo de cuenta', fechaHora: '2026-10-30T15:04:05.000Z' };
+  buzon.enviarAvisoBloqueo(aviso);
+  assert.deepStrictEqual(buzon.listar(), [aviso]);
+  buzon.listar()[0].para = 'otro@x.co';
+  assert.strictEqual(buzon.listar()[0].para, 'ana.torres@huellitas.co');
 });
