@@ -12,10 +12,48 @@
       <h1>Huellitas UPTC</h1>
       <p>Guardería de mascotas · Ingreso</p>
     </div>
-    <span class="version">v1.1</span>
+    <div class="encabezado__usuario">
+      <span id="empleado-conectado" class="empleado" hidden></span>
+      <button id="cerrar-sesion" type="button" hidden>Cerrar sesión</button>
+      <span class="version">v1.1</span>
+    </div>
   </header>
 
-  <main class="contenido">
+  <!-- Pantallas de sesión: se muestran u ocultan con el atributo hidden (VistaSesion) -->
+  <div class="contenido contenido--sesion">
+    <section id="panel-sesion" class="panel">
+      <h2>Iniciar sesión</h2>
+      <form id="formulario-sesion" novalidate>
+        <div class="campo">
+          <label for="correo">Correo</label>
+          <input id="correo" name="correo" type="email" autocomplete="off">
+        </div>
+        <div class="campo">
+          <label for="contrasena">Contraseña</label>
+          <input id="contrasena" name="contrasena" type="password" autocomplete="off">
+        </div>
+        <button type="submit" class="principal">Iniciar sesión</button>
+        <p id="mensaje-sesion" class="mensaje" role="status"></p>
+      </form>
+    </section>
+
+    <section id="panel-sin-permiso" class="panel" hidden>
+      <h2>Sin permiso</h2>
+      <p>Sin permiso. Inicie sesión para continuar.</p>
+      <a id="enlace-iniciar-sesion" href="#">Ir a iniciar sesión</a>
+    </section>
+
+    <section id="buzon-prueba" class="panel">
+      <h2>Buzón de prueba</h2>
+      <p class="atenuado">No hay servidor de correo: los avisos de bloqueo aparecen aquí.</p>
+      <ul id="lista-buzon" class="buzon"></ul>
+    </section>
+  </div>
+
+  <!-- Contenido protegido: no existe en el documento hasta iniciar sesión (AD-R1) -->
+  <main class="contenido"></main>
+
+  <template id="plantilla-ingresos">
     <section class="panel">
       <h2>Registrar un ingreso</h2>
       <form id="formulario-ingreso" novalidate>
@@ -80,7 +118,7 @@
         <tbody id="cuerpo-ingresos"></tbody>
       </table>
     </section>
-  </main>
+  </template>
 
   <!-- Dominio: no sabe nada de la página -->
   <script src="js/dominio/empleados.js"></script>
