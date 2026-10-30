@@ -1,7 +1,7 @@
-// Inicio de sesión de empleados con correo y contraseña (CU-R2, CU-R7).
-// Depende de abstracciones que recibe por el constructor (lista de empleados y función de hash),
-// no del navegador ni de Web Crypto: por eso se puede probar en Node.
-// La sesión vive solo en memoria; no se persiste.
+// Inicio de sesión de empleados con correo y contraseña (CU-R2, CU-R7, CU-R8).
+// Depende de abstracciones que recibe por el constructor (empleados, hash, reloj, almacén y notificador),
+// no del navegador ni de Web Crypto: por eso se puede probar en Node con reloj falso.
+// La sesión vive solo en memoria; los fallos y bloqueos sí se guardan en el almacén.
 (function (exportar) {
   'use strict';
 
@@ -9,6 +9,7 @@
     VACIOS: 'Ingrese correo y contraseña.',
     FORMATO: 'El correo no tiene un formato válido.',
     INCORRECTOS: 'Correo o contraseña incorrectos.',
+    BLOQUEADA: 'Cuenta bloqueada por demasiados intentos fallidos.',
   };
 
   // Texto antes de la arroba, una sola arroba, dominio con al menos un punto y texto a ambos lados de cada punto.
@@ -19,9 +20,14 @@
   }
 
   class ServicioSesion {
-    constructor({ empleados, hash }) {
+    constructor({ empleados, hash, reloj, almacen, notificador, maxIntentos, bloqueoMs }) {
       this.empleados = empleados;
       this.hash = hash;
+      this.reloj = reloj;
+      this.almacen = almacen;
+      this.notificador = notificador;
+      this.maxIntentos = maxIntentos;
+      this.bloqueoMs = bloqueoMs;
       this.empleado = null;
     }
 
@@ -36,13 +42,53 @@
 
       const registrado = this.empleados.find((e) => e.correo === correoNormalizado);
       const hashIntento = registrado ? await this.hash(registrado.sal + contrasena) : null;
-      if (!registrado || hashIntento !== registrado.hash) {
-        return { ok: false, mensaje: MENSAJES.INCORRECTOS };
+
+      // Desde aquí todo es síncrono: el estado se lee y se guarda sin que otro intento se cuele en medio.
+      const ahora = this.reloj.ahora();
+      const estado = this.leerEstado();
+      const cuenta = estado[correoNormalizado] || { fallos: 0, bloqueadoHasta: null };
+
+      if (cuenta.bloqueadoHasta !== null) {
+        if (ahora < cuenta.bloqueadoHasta) {
+          return { ok: false, mensaje: MENSAJES.BLOQUEADA };
+        }
+        // Bloqueo vencido: se borra y el contador vuelve a 0.
+        delete estado[correoNormalizado];
+        cuenta.fallos = 0;
+        cuenta.bloqueadoHasta = null;
       }
+
+      if (!registrado || hashIntento !== registrado.hash) {
+        cuenta.fallos += 1;
+        estado[correoNormalizado] = cuenta;
+        if (cuenta.fallos < this.maxIntentos) {
+          this.almacen.guardar(estado);
+          return { ok: false, mensaje: MENSAJES.INCORRECTOS };
+        }
+        cuenta.bloqueadoHasta = ahora + this.bloqueoMs;
+        this.almacen.guardar(estado);
+        // El aviso va una sola vez (en el último fallo) y solo si el correo es de un empleado.
+        if (registrado) {
+          this.notificador.enviarAvisoBloqueo({
+            para: registrado.correo,
+            asunto: 'Aviso de bloqueo de cuenta',
+            fechaHora: new Date(ahora).toISOString(),
+          });
+        }
+        return { ok: false, mensaje: MENSAJES.BLOQUEADA };
+      }
+
+      delete estado[correoNormalizado];
+      this.almacen.guardar(estado);
 
       // Se devuelve el empleado de la lista (no lo escrito) y sin sal ni hash.
       this.empleado = { correo: registrado.correo, nombre: registrado.nombre };
       return { ok: true, empleado: { ...this.empleado } };
+    }
+
+    leerEstado() {
+      const estado = this.almacen.leer();
+      return estado && typeof estado === 'object' ? estado : {};
     }
 
     cerrarSesion() {

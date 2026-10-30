@@ -104,13 +104,26 @@ test('hashSha256 de "abc" es el valor SHA-256 conocido', async () => {
 
 // --- Inicio de sesión (SPEC 02) ---
 // Empleados de prueba: la contraseña de Ana es 'clave-de-ana' y la de Luis 'clave-de-luis' (solo en las pruebas).
-async function crearServicioSesion() {
+// Reloj, almacén y notificador falsos: las pruebas controlan el tiempo y ven lo que se guarda y se avisa.
+async function crearEntornoSesion() {
   const sal = { ana: 'aa'.repeat(16), luis: 'bb'.repeat(16) };
   const empleados = [
     { correo: 'ana.torres@huellitas.co', nombre: 'Ana Torres', sal: sal.ana, hash: await hashSha256(sal.ana + 'clave-de-ana') },
     { correo: 'luis.gomez@huellitas.co', nombre: 'Luis Gómez', sal: sal.luis, hash: await hashSha256(sal.luis + 'clave-de-luis') },
   ];
-  return new ServicioSesion({ empleados, hash: hashSha256 });
+  let ahora = Date.UTC(2026, 9, 30, 15, 4, 5);
+  const reloj = { ahora: () => ahora, avanzar: (ms) => { ahora += ms; } };
+  const almacen = { estado: {}, leer() { return this.estado; }, guardar(estado) { this.estado = estado; } };
+  const notificador = { avisos: [], enviarAvisoBloqueo(aviso) { this.avisos.push(aviso); } };
+  const sesion = new ServicioSesion({
+    empleados, hash: hashSha256, reloj, almacen, notificador,
+    maxIntentos: 5, bloqueoMs: 15 * 60 * 1000,
+  });
+  return { sesion, reloj, almacen, notificador, empleados };
+}
+
+async function crearServicioSesion() {
+  return (await crearEntornoSesion()).sesion;
 }
 
 test('sesión: correo y contraseña correctos inician sesión', async () => {
@@ -188,4 +201,153 @@ test('sesión: un inicio exitoso reemplaza la sesión abierta', async () => {
   await sesion.iniciarSesion('ana.torres@huellitas.co', 'clave-de-ana');
   await sesion.iniciarSesion('luis.gomez@huellitas.co', 'clave-de-luis');
   assert.strictEqual(sesion.empleadoActual().correo, 'luis.gomez@huellitas.co');
+});
+
+// --- Bloqueo por intentos fallidos (CU-R8) ---
+const MINUTO = 60 * 1000;
+const ANA = 'ana.torres@huellitas.co';
+const LUIS = 'luis.gomez@huellitas.co';
+
+async function fallar(sesion, correo, veces) {
+  let ultimo;
+  for (let i = 0; i < veces; i++) {
+    ultimo = await sesion.iniciarSesion(correo, 'mala-clave');
+  }
+  return ultimo;
+}
+
+test('bloqueo: 4 fallos seguidos y luego la contraseña correcta, entra', async () => {
+  const { sesion } = await crearEntornoSesion();
+  const ultimo = await fallar(sesion, ANA, 4);
+  assert.strictEqual(ultimo.mensaje, 'Correo o contraseña incorrectos.');
+  const r = await sesion.iniciarSesion(ANA, 'clave-de-ana');
+  assert.strictEqual(r.ok, true);
+});
+
+test('bloqueo: el 5.º fallo seguido bloquea la cuenta', async () => {
+  const { sesion } = await crearEntornoSesion();
+  const ultimo = await fallar(sesion, ANA, 5);
+  assert.deepStrictEqual(ultimo, { ok: false, mensaje: 'Cuenta bloqueada por demasiados intentos fallidos.' });
+});
+
+test('bloqueo: con la cuenta bloqueada ni la contraseña correcta entra', async () => {
+  const { sesion } = await crearEntornoSesion();
+  await fallar(sesion, ANA, 5);
+  const r = await sesion.iniciarSesion(ANA, 'clave-de-ana');
+  assert.deepStrictEqual(r, { ok: false, mensaje: 'Cuenta bloqueada por demasiados intentos fallidos.' });
+  assert.strictEqual(sesion.haySesion(), false);
+});
+
+test('bloqueo: a los 14:59 sigue bloqueada y a los 15:00 puede entrar', async () => {
+  const { sesion, reloj } = await crearEntornoSesion();
+  await fallar(sesion, ANA, 5);
+  reloj.avanzar(15 * MINUTO - 1000);
+  const antes = await sesion.iniciarSesion(ANA, 'clave-de-ana');
+  assert.strictEqual(antes.mensaje, 'Cuenta bloqueada por demasiados intentos fallidos.');
+  reloj.avanzar(1000);
+  const despues = await sesion.iniciarSesion(ANA, 'clave-de-ana');
+  assert.strictEqual(despues.ok, true);
+});
+
+test('bloqueo: vencido el bloqueo, el contador empieza de nuevo', async () => {
+  const { sesion, reloj } = await crearEntornoSesion();
+  await fallar(sesion, ANA, 5);
+  reloj.avanzar(15 * MINUTO);
+  const r = await fallar(sesion, ANA, 4);
+  assert.strictEqual(r.mensaje, 'Correo o contraseña incorrectos.');
+  const quinto = await sesion.iniciarSesion(ANA, 'mala-clave');
+  assert.strictEqual(quinto.mensaje, 'Cuenta bloqueada por demasiados intentos fallidos.');
+});
+
+test('bloqueo: los intentos durante el bloqueo no lo alargan', async () => {
+  const { sesion, reloj, almacen } = await crearEntornoSesion();
+  await fallar(sesion, ANA, 5);
+  const hasta = almacen.estado[ANA].bloqueadoHasta;
+  reloj.avanzar(10 * MINUTO);
+  await fallar(sesion, ANA, 3);
+  assert.strictEqual(almacen.estado[ANA].bloqueadoHasta, hasta);
+  reloj.avanzar(5 * MINUTO);
+  const r = await sesion.iniciarSesion(ANA, 'clave-de-ana');
+  assert.strictEqual(r.ok, true);
+});
+
+test('bloqueo: el aviso se envía una sola vez, con correo y fecha y hora', async () => {
+  const { sesion, reloj, notificador } = await crearEntornoSesion();
+  await fallar(sesion, ANA, 4);
+  assert.strictEqual(notificador.avisos.length, 0);
+  await fallar(sesion, ANA, 1);
+  await fallar(sesion, ANA, 3);
+  await sesion.iniciarSesion(ANA, 'clave-de-ana');
+  assert.deepStrictEqual(notificador.avisos, [{
+    para: ANA,
+    asunto: 'Aviso de bloqueo de cuenta',
+    fechaHora: new Date(reloj.ahora()).toISOString(),
+  }]);
+});
+
+test('bloqueo: bloquear a una cuenta no afecta a las demás', async () => {
+  const { sesion } = await crearEntornoSesion();
+  await fallar(sesion, ANA, 5);
+  const r = await sesion.iniciarSesion(LUIS, 'clave-de-luis');
+  assert.strictEqual(r.ok, true);
+});
+
+test('bloqueo: los fallos de un correo no se mezclan con los de otro', async () => {
+  const { sesion } = await crearEntornoSesion();
+  await fallar(sesion, ANA, 3);
+  await fallar(sesion, LUIS, 3);
+  const r = await sesion.iniciarSesion(ANA, 'clave-de-ana');
+  assert.strictEqual(r.ok, true);
+});
+
+test('bloqueo: un correo inexistente también cuenta, pero no envía aviso', async () => {
+  const { sesion, notificador } = await crearEntornoSesion();
+  const ultimo = await fallar(sesion, 'nadie@huellitas.co', 5);
+  assert.strictEqual(ultimo.mensaje, 'Cuenta bloqueada por demasiados intentos fallidos.');
+  assert.strictEqual(notificador.avisos.length, 0);
+});
+
+test('bloqueo: el correo se cuenta normalizado', async () => {
+  const { sesion } = await crearEntornoSesion();
+  await fallar(sesion, '  ANA.TORRES@huellitas.CO ', 3);
+  const ultimo = await fallar(sesion, ANA, 2);
+  assert.strictEqual(ultimo.mensaje, 'Cuenta bloqueada por demasiados intentos fallidos.');
+});
+
+test('bloqueo: formato inválido y campos vacíos no suman ni cortan la racha', async () => {
+  const { sesion } = await crearEntornoSesion();
+  await fallar(sesion, ANA, 2);
+  await sesion.iniciarSesion('ana', 'mala-clave');
+  await sesion.iniciarSesion(ANA, '');
+  await sesion.iniciarSesion('', 'mala-clave');
+  const r = await fallar(sesion, ANA, 2);
+  assert.strictEqual(r.mensaje, 'Correo o contraseña incorrectos.');
+  const quinto = await sesion.iniciarSesion(ANA, 'mala-clave');
+  assert.strictEqual(quinto.mensaje, 'Cuenta bloqueada por demasiados intentos fallidos.');
+});
+
+test('bloqueo: los vacíos se avisan aun con la cuenta bloqueada', async () => {
+  const { sesion } = await crearEntornoSesion();
+  await fallar(sesion, ANA, 5);
+  const r = await sesion.iniciarSesion(ANA, '');
+  assert.strictEqual(r.mensaje, 'Ingrese correo y contraseña.');
+});
+
+test('bloqueo: un inicio exitoso pone el contador en 0', async () => {
+  const { sesion } = await crearEntornoSesion();
+  await fallar(sesion, ANA, 4);
+  await sesion.iniciarSesion(ANA, 'clave-de-ana');
+  const r = await fallar(sesion, ANA, 4);
+  assert.strictEqual(r.mensaje, 'Correo o contraseña incorrectos.');
+});
+
+test('bloqueo: el estado persiste en el almacén y otro servicio lo respeta', async () => {
+  const { sesion, almacen, reloj, empleados } = await crearEntornoSesion();
+  await fallar(sesion, ANA, 5);
+  const otro = new ServicioSesion({
+    empleados, hash: hashSha256, reloj, almacen,
+    notificador: { enviarAvisoBloqueo() {} }, maxIntentos: 5, bloqueoMs: 15 * MINUTO,
+  });
+  const r = await otro.iniciarSesion(ANA, 'clave-de-ana');
+  assert.strictEqual(r.mensaje, 'Cuenta bloqueada por demasiados intentos fallidos.');
 });
