@@ -1,18 +1,27 @@
 // Los casos de uso: registrar un ingreso, registrar la llegada, entregar la mascota.
-// Depende de abstracciones que recibe por el constructor (validador, calculadora, estados, repositorio),
+// Depende de abstracciones que recibe por el constructor (validador, calculadora, estados, repositorio, sesion),
 // no de clases concretas: por eso se puede probar con un repositorio en memoria.
+// Sin sesión (AD-R1) ningún caso de uso responde: la guardia está aquí y no solo en la interfaz.
 (function (exportar) {
   'use strict';
 
   class ServicioIngresos {
-    constructor({ validador, calculadora, estados, repositorio }) {
+    constructor({ validador, calculadora, estados, repositorio, sesion }) {
       this.validador = validador;
       this.calculadora = calculadora;
       this.estados = estados;
       this.repositorio = repositorio;
+      this.sesion = sesion;
+    }
+
+    sinPermiso() {
+      return { ok: false, mensaje: 'Sin permiso', errores: [] };
     }
 
     registrar(datos) {
+      if (!this.sesion.haySesion()) {
+        return this.sinPermiso();
+      }
       const errores = this.validador.validar(datos);
       if (errores.length > 0) {
         return { ok: false, errores };
@@ -32,14 +41,23 @@
     }
 
     registrarLlegada(codigo) {
+      if (!this.sesion.haySesion()) {
+        return this.sinPermiso();
+      }
       return this.cambiarEstado(codigo, this.estados.ACCIONES.LLEGADA);
     }
 
     entregar(codigo) {
+      if (!this.sesion.haySesion()) {
+        return this.sinPermiso();
+      }
       return this.cambiarEstado(codigo, this.estados.ACCIONES.ENTREGAR);
     }
 
     listar() {
+      if (!this.sesion.haySesion()) {
+        return [];
+      }
       return this.repositorio.listar();
     }
 

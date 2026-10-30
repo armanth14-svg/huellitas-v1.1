@@ -91,6 +91,7 @@ test('con datos inválidos el servicio no registra nada', () => {
     calculadora: new CalculadoraTarifa(ESPECIES),
     estados: EstadoIngreso,
     repositorio,
+    sesion: { haySesion: () => true },
   });
   const r = servicio.registrar({ ...valido, nombre: '' });
   assert.strictEqual(r.ok, false);
@@ -483,4 +484,53 @@ test('inactividad: un nuevo inicio de sesión reinicia la cuenta', async () => {
   await entorno.sesion.iniciarSesion(LUIS, 'clave-de-luis');
   entorno.reloj.avanzar(25 * MINUTO);
   assert.strictEqual(entorno.sesion.empleadoActual().correo, LUIS);
+});
+
+// --- Guardia de sesión en ServicioIngresos (AD-R1) ---
+function crearServicioIngresos(sesion) {
+  return new ServicioIngresos({
+    validador: new ValidadorIngreso([new ReglaNombre(), new ReglaEdad()]),
+    calculadora: new CalculadoraTarifa(ESPECIES),
+    estados: EstadoIngreso,
+    repositorio: new RepositorioEnMemoria(),
+    sesion,
+  });
+}
+
+test('guardia: sin sesión, registrar devuelve Sin permiso y no guarda nada', () => {
+  const servicio = crearServicioIngresos({ haySesion: () => false });
+  const r = servicio.registrar(valido);
+  assert.deepStrictEqual(r, { ok: false, mensaje: 'Sin permiso', errores: [] });
+  assert.deepStrictEqual(servicio.repositorio.listar(), []);
+});
+
+test('guardia: sin sesión, registrarLlegada y entregar devuelven Sin permiso', () => {
+  let hay = true;
+  const servicio = crearServicioIngresos({ haySesion: () => hay });
+  const { ingreso } = servicio.registrar(valido);
+  hay = false;
+  const esperado = { ok: false, mensaje: 'Sin permiso', errores: [] };
+  assert.deepStrictEqual(servicio.registrarLlegada(ingreso.codigo), esperado);
+  assert.deepStrictEqual(servicio.entregar(ingreso.codigo), esperado);
+  hay = true;
+  assert.strictEqual(servicio.listar()[0].estado, EstadoIngreso.inicial());
+});
+
+test('guardia: sin sesión, listar devuelve una lista vacía aunque haya ingresos', () => {
+  let hay = true;
+  const servicio = crearServicioIngresos({ haySesion: () => hay });
+  servicio.registrar(valido);
+  assert.strictEqual(servicio.listar().length, 1);
+  hay = false;
+  assert.deepStrictEqual(servicio.listar(), []);
+});
+
+test('guardia: con sesión los casos de uso funcionan y los ingresos sobreviven al cierre', () => {
+  let hay = true;
+  const servicio = crearServicioIngresos({ haySesion: () => hay });
+  assert.strictEqual(servicio.registrar(valido).ok, true);
+  hay = false;
+  assert.deepStrictEqual(servicio.listar(), []);
+  hay = true;
+  assert.strictEqual(servicio.listar().length, 1);
 });
