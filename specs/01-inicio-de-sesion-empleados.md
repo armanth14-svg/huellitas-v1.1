@@ -1,6 +1,7 @@
 # SPEC 01 — Inicio de sesión de empleados
 
-> **Estado:** Implentado
+> **Estado:** Obsoleto
+> **Reemplazada por:** SPEC 02 — contradecía CU-R2, CU-R7, CU-R8, CU-R9 y AD-R1 (ver hallazgos/). Nunca se llegó a implementar.
 > **Depende de:** —
 > **Fecha:** 2026-10-28
 > **Objetivo:** Que solo un empleado de la guardería que inicie sesión con usuario y contraseña pueda ver y usar el registro de ingresos.
